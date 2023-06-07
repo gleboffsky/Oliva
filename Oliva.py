@@ -1,8 +1,11 @@
+import datetime
 import sys
 from PyQt5 import QtWidgets, QtGui
 import cv2 as cv
 import numpy as np
 import os
+from datetime import datetime, date
+
 
 class Example(QtWidgets.QWidget):
 
@@ -49,25 +52,24 @@ class Example(QtWidgets.QWidget):
                 kernel = cv.getStructuringElement(cv.MORPH_RECT, (10, 10))
                 closed = cv.morphologyEx(canny, cv.MORPH_CLOSE, kernel)
                 contours = cv.findContours(closed.copy(), cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE)[0]
-
+                file = open(f"{self.dirlist_output}/{datetime.now().date()} {datetime.now().time().hour};{datetime.now().time().minute};{datetime.now().time().second}.csv", "w")
                 for cnt in contours:
                     cv.drawContours(img, contours, -1, (255, 0, 0), 2)  # рисуем прямоугольник
                     M = cv.moments(cnt)
                     if M["m00"] != 0:
-                        print(M["m00"])
+                        h, w, c = img.shape
+                        file.write(f"Имя фото:{photo}  Высота:{h}  Ширина:{w}  Дата и время обработки:{datetime.now()}  Площадь в пикселях: {M['m00']}  Площадь в см2: ")
 
-                cv.imshow('contours', img)  # вывод обработанного кадра в окно
-                cv.waitKey()
-                cv.destroyAllWindows()
+                file.close()
+                #cv.putText(img, str(M["m00"]), (np.int0(M["m01"] / M["m00"]), np.int0(M["m10"] / M["m00"])), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
+                #cv.imshow('contours', img)  # вывод обработанного кадра в окно
+                #cv.waitKey()
+                #cv.destroyAllWindows()
 
         except Exception as err:
             print(err)
-            #cv.putText(img, str(M["m00"]), (np.int0(M["m01"] / M["m00"]), np.int0(M["m10"] / M["m00"])), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
 
         # перебираем все найденные контуры в цикле
-
-
-
 
 def main():
     app = QtWidgets.QApplication(sys.argv)
