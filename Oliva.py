@@ -45,7 +45,7 @@ class Example(QtWidgets.QWidget):
         self.gridLayout.addLayout(self.horizontalLayout, 1, 1, 1, 1)
         self.gridLayout.setColumnStretch(0, 1)
         self.gridLayout.setColumnStretch(1, 1)
-        self.setGeometry(300, 300, 290, 150)
+        self.setGeometry(300, 300, 500, 250)
         self.setWindowTitle('Input dialog')
         self.show()
 
@@ -63,28 +63,39 @@ class Example(QtWidgets.QWidget):
     def functional(self):
         try:
             photos = os.listdir(self.dirlist_input)
+            file = open(
+                f"{self.dirlist_output}/{datetime.now().date()} {datetime.now().time().hour};{datetime.now().time().minute};{datetime.now().time().second}.csv",
+                "w")
+            N = True
             for photo in photos:
                 data_time = None
                 Model = None
-                N = 0
                 img = cv.imread(f"{self.dirlist_input}\\{photo}")
+                height_img, width_img, channels = img.shape
                 gr = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
                 bl = cv.medianBlur(gr, 5)
                 canny = cv.Canny(bl, 90, 300)
                 kernel = cv.getStructuringElement(cv.MORPH_RECT, (10, 10))
                 closed = cv.morphologyEx(canny, cv.MORPH_CLOSE, kernel)
                 contours = cv.findContours(closed.copy(), cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE)[0]
-                file = open(f"{self.dirlist_output}/{datetime.now().date()} {datetime.now().time().hour};{datetime.now().time().minute};{datetime.now().time().second}.csv", "w")
-                edit = csv.writer(file, delimiter=' ',
-                                  quotechar='|', quoting=csv.QUOTE_MINIMAL, lineterminator="\n")
-                edit.writerow(["Дата и время съемки", "Имя изображения", "Высота изображения", "Ширина изображения", "Дата и время обработки", "Площадь в пикселях",
-                               "Площадь в см2", "Максимальная линейная длина объекта в пикселях", "Минимальная линейная длина объекта в пикселях", "Размеры описанного прямоугольника в пикселях", "Максимальная линейная длина объекта в см2", "Минимальная линейная длина объекта в см2", "Размеры описанного прямоугольника в см2", "Модель камеры"])
+
+                edit = csv.writer(file, delimiter=';',  quoting=csv.QUOTE_MINIMAL, lineterminator="\n")
+                if N == True:
+                    edit.writerow(["Имя изображения", "Площадь в пикселях",
+                                   "Площадь в см2", "Дата и время съемки", "Высота изображения", "Ширина изображения", "Дата и время обработки",  "Максимальная линейная длина объекта в пикселях", "Минимальная линейная длина объекта в пикселях", "Размеры описанного прямоугольника в пикселях", "Максимальная линейная длина объекта в см2", "Минимальная линейная длина объекта в см2", "Размеры описанного прямоугольника в см2", "Модель камеры"])
+                    N = False
+                max_cnt = 1
+                b = 0
+                for temp_cnt in contours:
+                    temp_moment = cv.moments(temp_cnt)
+                    b = temp_moment["m00"]
+                    if max_cnt < b:
+                        max_cnt = b
 
                 for cnt in contours:
                     cv.drawContours(img, contours, -1, (255, 0, 0), 2)  # рисуем прямоугольник
                     M = cv.moments(cnt)
-                    if M["m00"] != 0:
-
+                    if M["m00"] == max_cnt:
                         #file.write(f"Имя фото:{photo}  Высота:{h}  Ширина:{w}  Дата и время обработки:{datetime.now()}  Площадь в пикселях: {M['m00']}  Площадь в см2: ")
                         image = Image.open(f"{self.dirlist_input}\\{photo}")
                         exit_data = image.getexif()
@@ -97,13 +108,12 @@ class Example(QtWidgets.QWidget):
                             with open(self.file_path_area, "a") as filee:
                                 filee.write(f"\nНедостаточно параметров; {err}")
                                 filee.close()
-                        edit.writerow([f"{data_time}", f"{photo}", f"{h}", f"{w}", f"{datetime.now()}", f"{M['m00']}", f"{M['m00']*float(self.lineEdit.text())}", f"{h}", f"{w}", f"{h*w}", f"{h*float(self.lineEdit.text())}", f"{w*float(self.lineEdit.text())}", f"{h*w*float(self.lineEdit.text())}", f"{Model}"])
-                        N+=1
-                cv.imshow('contours', img)  # вывод обработанного кадра в окно
-                cv.waitKey(0)
-                cv.destroyAllWindows()
-                file.close()
-                print(f"!!!!!{N}!!!!!!")
+                        edit.writerow([f"{photo}", f"{M['m00']}", f"{M['m00']*float(self.lineEdit.text())}", f"{data_time}", f"{height_img}", f"{width_img}", f"{datetime.now()}", f"{h}", f"{w}", f"{h*w}", f"{h*float(self.lineEdit.text())}", f"{w*float(self.lineEdit.text())}", f"{h*w*float(self.lineEdit.text())}", f"{Model}"])
+
+                #cv.imshow('contours', img)  # вывод обработанного кадра в окно
+                #cv.waitKey(0)
+                #cv.destroyAllWindows()
+            file.close()
         except Exception as err:
             with open(self.file_path_area, "a") as file:
                 file.write(f"\nОшибка: {err}")
