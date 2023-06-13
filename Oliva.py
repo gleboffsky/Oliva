@@ -24,12 +24,12 @@ class Example(QtWidgets.QWidget):
         self.gridLayout.setObjectName("gridLayout")
         self.btn = QtWidgets.QPushButton('Выбор папки с фото', self)
         self.gridLayout.addWidget(self.btn, 0, 0, 1, 1)
-        self.btn.clicked.connect(self.path_file_input)
+        self.btn.clicked.connect(self.set_file_input)
         self.btn2 = QtWidgets.QPushButton('Выбор пути для файла csv', self)
-        self.btn2.clicked.connect(self.path_file_output)
+        self.btn2.clicked.connect(self.set_file_output)
         self.gridLayout.addWidget(self.btn2, 0, 1, 1, 1)
         self.btn3 = QtWidgets.QPushButton('Старт', self)
-        self.btn3.clicked.connect(self.threading_functional)
+        self.btn3.clicked.connect(self.functional)
         self.gridLayout.addWidget(self.btn3, 1, 0, 1, 1)
         self.horizontalLayout = QtWidgets.QHBoxLayout()
         self.horizontalLayout.setObjectName("horizontalLayout")
@@ -49,10 +49,10 @@ class Example(QtWidgets.QWidget):
         self.setWindowTitle('Input dialog')
         self.show()
 
-    def path_file_input(self):
+    def set_file_input(self):
         self.dirlist_input = QtWidgets.QFileDialog.getExistingDirectory(None, "Выбрать папку", ".")
 
-    def path_file_output(self):
+    def set_file_output(self):
         self.dirlist_output = QtWidgets.QFileDialog.getExistingDirectory(None, "Выбрать папку", ".")
 
     def threading_functional(self):
@@ -84,39 +84,24 @@ class Example(QtWidgets.QWidget):
                     edit.writerow(["Имя изображения", "Площадь в пикселях",
                                    "Площадь в см2", "Дата и время съемки", "Высота изображения", "Ширина изображения", "Дата и время обработки",  "Максимальная линейная длина объекта в пикселях", "Минимальная линейная длина объекта в пикселях", "Размеры описанного прямоугольника в пикселях", "Максимальная линейная длина объекта в см2", "Минимальная линейная длина объекта в см2", "Размеры описанного прямоугольника в см2", "Модель камеры"])
                     N = False
-                max_cnt = 1
-                b = 0
-                for temp_cnt in contours:
-                    temp_moment = cv.moments(temp_cnt)
-                    b = temp_moment["m00"]
-                    if max_cnt < b:
-                        max_cnt = b
+                max_cnt = max(contours, key=cv.contourArea)
+                moments = cv.moments(max_cnt)
+                image = Image.open(f"{self.dirlist_input}\\{photo}")
+                exit_data = image.getexif()
+                x, y, w, h = cv.boundingRect(max_cnt)
+                try:
+                    data_time = exit_data[306]
+                    Model = exit_data[272]
+                except Exception as err:
+                    with open(self.file_path_area, "a") as filee:
+                        filee.write(f"\nНедостаточно параметров; {err}")
+                        filee.close()
+                edit.writerow([f"{photo}", f"{moments['m00']}", f"{moments['m00']*float(self.lineEdit.text())}", f"{data_time}", f"{height_img}", f"{width_img}", f"{datetime.now()}", f"{h}", f"{w}", f"{h*w}", f"{h*float(self.lineEdit.text())}", f"{w*float(self.lineEdit.text())}", f"{h*w*float(self.lineEdit.text())}", f"{Model}"])
 
-                for cnt in contours:
-                    cv.drawContours(img, contours, -1, (255, 0, 0), 2)  # рисуем прямоугольник
-                    M = cv.moments(cnt)
-                    if M["m00"] == max_cnt:
-                        #file.write(f"Имя фото:{photo}  Высота:{h}  Ширина:{w}  Дата и время обработки:{datetime.now()}  Площадь в пикселях: {M['m00']}  Площадь в см2: ")
-                        image = Image.open(f"{self.dirlist_input}\\{photo}")
-                        exit_data = image.getexif()
-                        x, y, w, h = cv.boundingRect(cnt)
-                        img = cv.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
-                        try:
-                            data_time = exit_data[306]
-                            Model = exit_data[272]
-                        except Exception as err:
-                            with open(self.file_path_area, "a") as filee:
-                                filee.write(f"\nНедостаточно параметров; {err}")
-                                filee.close()
-                        edit.writerow([f"{photo}", f"{M['m00']}", f"{M['m00']*float(self.lineEdit.text())}", f"{data_time}", f"{height_img}", f"{width_img}", f"{datetime.now()}", f"{h}", f"{w}", f"{h*w}", f"{h*float(self.lineEdit.text())}", f"{w*float(self.lineEdit.text())}", f"{h*w*float(self.lineEdit.text())}", f"{Model}"])
-
-                #cv.imshow('contours', img)  # вывод обработанного кадра в окно
-                #cv.waitKey(0)
-                #cv.destroyAllWindows()
             file.close()
         except Exception as err:
             with open(self.file_path_area, "a") as file:
-                file.write(f"\nОшибка: {err}")
+                file.write(f"\n{datetime.now()} Ошибка: {err}")
                 file.close()
         # перебираем все найденные контуры в цикле
 def main():
