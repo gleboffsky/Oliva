@@ -9,6 +9,8 @@ import csv
 from PIL import Image
 import threading
 from rembg import remove
+import matplotlib.pyplot as plt
+
 class Example(QtWidgets.QWidget):
 
     def __init__(self):
@@ -64,10 +66,10 @@ class Example(QtWidgets.QWidget):
         try:
             if not os.path.isdir(f'{self.dirlist_output}\\images_without_bg'):
                 os.mkdir(f'{self.dirlist_output}\\images_without_bg')
-            for pict in os.listdir(self.dirlist_input):
+            for pict in os.listdir(f'{self.dirlist_output}\\crop_image'):
                 if pict.endswith('.png') or pict.endswith('.jpg') or pict.endswith('.jpeg') or pict.endswith('.PNG') or pict.endswith('.JPG') or pict.endswith('.JPEG'):
                     print(f'[+] Удаляю фон: "{pict}"...')
-                    output = remove(Image.open(os.path.join(self.dirlist_input, pict)))
+                    output = remove(Image.open(os.path.join(f'{self.dirlist_output}\\crop_image', pict)))
                     output.save(os.path.join(f'{self.dirlist_output}\\images_without_bg', f'{pict.split(".")[0]}.png'))
                 else:
                     continue
@@ -127,6 +129,21 @@ class Example(QtWidgets.QWidget):
                         filee.write(f"\nНедостаточно параметров; {err}")
                         filee.close()
                 edit.writerow([f"{photo}", f"{moments['m00']}", f"{moments['m00']*float(self.lineEdit.text())}", f"{data_time}", f"{height_img}", f"{width_img}", f"{datetime.now()}", f"{h}", f"{w}", f"{h*w}", f"{h*float(self.lineEdit.text())}", f"{w*float(self.lineEdit.text())}", f"{h*w*float(self.lineEdit.text())}", f"{Model}"])
+                print("y:", y, type(y), "\n")
+                print("y+h:", y+h, "\n")
+                print("x:", x, "\n")
+                print("x+w:", y, "\n")
+                print("height_img:", height_img, type(height_img),"\n")
+                print("width_img:", width_img, type(width_img),"\n")
+
+                if not os.path.isdir(f'{self.dirlist_output}\\crop_image'):
+                    os.mkdir(f'{self.dirlist_output}\\crop_image')
+                try:
+                    crop_img =img[int(y-height_img*0.1):int(y + h+height_img*0.1), int(x-width_img*0.1):int(x + w+width_img*0.1)]
+                    write_crop = cv.imwrite(f'{self.dirlist_output}\\crop_image\\{photo}', crop_img)
+                except Exception as err:
+                    write_crop = cv.imwrite(f'{self.dirlist_output}\\crop_image\\{photo}', img)
+                    print("Фото не надо обрезать: ", err)
 
             file.close()
             self.without_bg()
