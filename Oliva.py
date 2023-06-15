@@ -8,7 +8,7 @@ from datetime import datetime, date
 import csv
 from PIL import Image
 import threading
-
+from rembg import remove
 class Example(QtWidgets.QWidget):
 
     def __init__(self):
@@ -60,6 +60,36 @@ class Example(QtWidgets.QWidget):
         t.daemon = True
         t.start()
 
+    def without_bg(self):
+        try:
+            if not os.path.isdir(f'{self.dirlist_output}\\images_without_bg'):
+                os.mkdir(f'{self.dirlist_output}\\images_without_bg')
+            for pict in os.listdir(self.dirlist_input):
+                if pict.endswith('.png') or pict.endswith('.jpg') or pict.endswith('.jpeg') or pict.endswith('.PNG') or pict.endswith('.JPG') or pict.endswith('.JPEG'):
+                    print(f'[+] Удаляю фон: "{pict}"...')
+                    output = remove(Image.open(os.path.join(self.dirlist_input, pict)))
+                    output.save(os.path.join(f'{self.dirlist_output}\\images_without_bg', f'{pict.split(".")[0]}.png'))
+                else:
+                    continue
+        except Exception as err:
+            with open(self.file_path_area, "a") as file:
+                file.write(f"\n{datetime.now()} Ошибка without_bg: {err}")
+                file.close()
+
+    def white_bg(self):
+        try:
+            if not os.path.isdir(f'{self.dirlist_output}\\images_white_bg'):
+                os.mkdir(f'{self.dirlist_output}\\images_white_bg')
+            for pict in os.listdir(f"{self.dirlist_output}\\images_without_bg"):
+                image = Image.open(f"{self.dirlist_output}\\images_without_bg\\{pict}")
+                new_image = Image.new("RGBA", image.size, "WHITE")  # Create a white rgba background
+                new_image.paste(image, (0, 0),
+                                image)  # Paste the image on the background. Go to the links given below for details.
+                new_image.convert('RGB').save(f"{self.dirlist_output}\\images_white_bg\\{pict}", "JPEG")  # Save as JPEG
+        except Exception as err:
+            with open(self.file_path_area, "a") as file:
+                file.write(f"\n{datetime.now()} Ошибка white_bg: {err}")
+                file.close()
     def functional(self):
         try:
             photos = os.listdir(self.dirlist_input)
@@ -99,6 +129,8 @@ class Example(QtWidgets.QWidget):
                 edit.writerow([f"{photo}", f"{moments['m00']}", f"{moments['m00']*float(self.lineEdit.text())}", f"{data_time}", f"{height_img}", f"{width_img}", f"{datetime.now()}", f"{h}", f"{w}", f"{h*w}", f"{h*float(self.lineEdit.text())}", f"{w*float(self.lineEdit.text())}", f"{h*w*float(self.lineEdit.text())}", f"{Model}"])
 
             file.close()
+            self.without_bg()
+            self.white_bg()
         except Exception as err:
             with open(self.file_path_area, "a") as file:
                 file.write(f"\n{datetime.now()} Ошибка: {err}")
