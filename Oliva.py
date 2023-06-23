@@ -1,15 +1,14 @@
 import datetime
 import sys
-from PyQt5 import QtWidgets, QtGui, QtCore
-import cv2 as cv
+from PyQt5 import QtWidgets
 import numpy as np
 import os
-from datetime import datetime, date
+from datetime import datetime
 import csv
-from PIL import Image
 import threading
 from rembg import remove
-import matplotlib.pyplot as plt
+from PIL import Image, ImageFilter, ImageDraw
+from math import sqrt
 
 class Example(QtWidgets.QWidget):
 
@@ -37,7 +36,7 @@ class Example(QtWidgets.QWidget):
         self.horizontalLayout.setObjectName("horizontalLayout")
         self.label = QtWidgets.QLabel(self)
         self.label.setObjectName("label")
-        self.label.setText("Коэффициент фото")
+        self.label.setText("Коэффициент фото(pix/1мм)")
         self.horizontalLayout.addWidget(self.label)
         self.lineEdit = QtWidgets.QLineEdit(self)
         self.lineEdit.setObjectName("lineEdit")
@@ -62,92 +61,167 @@ class Example(QtWidgets.QWidget):
         t.daemon = True
         t.start()
 
-    def without_bg(self):
+    def without_bg(self, date, hour, minute, second):
         try:
             if not os.path.isdir(f'{self.dirlist_output}\\images_without_bg'):
                 os.mkdir(f'{self.dirlist_output}\\images_without_bg')
-            for pict in os.listdir(f'{self.dirlist_output}\\crop_image'):
+
+            os.mkdir(f'{self.dirlist_output}\\images_without_bg\\{date} {hour};{minute};{second}')
+            for pict in os.listdir(f'{self.dirlist_input}'):
                 if pict.endswith('.png') or pict.endswith('.jpg') or pict.endswith('.jpeg') or pict.endswith('.PNG') or pict.endswith('.JPG') or pict.endswith('.JPEG'):
-                    print(f'[+] Удаляю фон: "{pict}"...')
-                    output = remove(Image.open(os.path.join(f'{self.dirlist_output}\\crop_image', pict)))
-                    output.save(os.path.join(f'{self.dirlist_output}\\images_without_bg', f'{pict.split(".")[0]}.png'))
+                    output = remove(Image.open(os.path.join(f'{self.dirlist_input}', pict)))
+                    output.save(os.path.join(f'{self.dirlist_output}\\images_without_bg\\{date} {hour};{minute};{second}', f'{pict}.png'))
                 else:
                     continue
         except Exception as err:
             with open(self.file_path_area, "a") as file:
-                file.write(f"\n{datetime.now()} Ошибка without_bg: {err}")
+                file.write(f"\n{date, hour, minute, second} Ошибка without_bg: {err}")
                 file.close()
 
-    def white_bg(self):
+    def white_bg(self,date, hour, minute, second):
         try:
             if not os.path.isdir(f'{self.dirlist_output}\\images_white_bg'):
                 os.mkdir(f'{self.dirlist_output}\\images_white_bg')
-            for pict in os.listdir(f"{self.dirlist_output}\\images_without_bg"):
-                image = Image.open(f"{self.dirlist_output}\\images_without_bg\\{pict}")
+            os.mkdir(f'{self.dirlist_output}\\images_white_bg\\{date} {hour};{minute};{second}')
+            for pict in os.listdir(f"{self.dirlist_output}\\images_without_bg\\{date} {hour};{minute};{second}"):
+                image = Image.open(f"{self.dirlist_output}\\images_without_bg\\{date} {hour};{minute};{second}\\{pict}")
                 new_image = Image.new("RGBA", image.size, "WHITE")  # Create a white rgba background
                 new_image.paste(image, (0, 0),
                                 image)  # Paste the image on the background. Go to the links given below for details.
-                new_image.convert('RGB').save(f"{self.dirlist_output}\\images_white_bg\\{pict}", "JPEG")  # Save as JPEG
+                new_image.convert('RGB').save(f"{self.dirlist_output}\\images_white_bg\\{date} {hour};{minute};{second}\\{pict}", "png")  # Save as JPEG
+                image.close()
         except Exception as err:
             with open(self.file_path_area, "a") as file:
                 file.write(f"\n{datetime.now()} Ошибка white_bg: {err}")
                 file.close()
+
+    def mesh_creator(self, date, hour, minute, second):
+        try:
+            if not os.path.isdir(f'{self.dirlist_output}\\mesh_creator'):
+                os.mkdir(f'{self.dirlist_output}\\mesh_creator')
+            os.mkdir(f'{self.dirlist_output}\\mesh_creator\\{date} {hour};{minute};{second}')
+            for pict in os.listdir(f"{self.dirlist_output}\\images_without_bg\\{date} {hour};{minute};{second}"):
+                img = Image.open(f"{self.dirlist_output}\\images_without_bg\\{date} {hour};{minute};{second}\\{pict}")
+                img_size = img.size
+                font = Image.new('RGBA', img_size, (255, 255, 255, 0))
+                draw = ImageDraw.Draw(font)
+                width = int((img_size[0] + img_size[1]) * 0.005)
+                # сетка вертикаль
+                for i in range(0, img_size[0], int(5 * float(self.lineEdit.text()))):
+                    draw.line((i, 0, i, img_size[1]), fill='green', width=width)
+                # сетка горизонталь
+                for i in range(0, img_size[1], int(10 * float(self.lineEdit.text()))):
+                    draw.line((0, i, img_size[0], i), fill='blue', width=width)
+                # сетка вертикаль
+                for i in range(0, img_size[0], int(50 * float(self.lineEdit.text()))):
+                    draw.line((i, 0, i, img_size[1]), fill='red', width=width)
+                # сетка горизонталь
+                for i in range(0, img_size[1], int(50 * float(self.lineEdit.text()))):
+                    draw.line((0, i, img_size[0], i), fill='red', width=width)
+
+                Image.alpha_composite(font, img).save(f"{self.dirlist_output}\\mesh_creator\\{date} {hour};{minute};{second}\\{pict}", "png")
+                font.close()
+                img.close()
+        except Exception as err:
+            with open(self.file_path_area, "a") as file:
+                file.write(f"\n{datetime.now()} Ошибка mesh_creator: {err}")
+                file.close()
+
+    def crop_image(self, left, top, right, bottom, date, hour, minute, second, img, photo):
+        try:
+            if not os.path.isdir(f'{self.dirlist_output}\\images_crop'):
+                os.mkdir(f'{self.dirlist_output}\\images_crop')
+            if not os.path.isdir(f'{self.dirlist_output}\\images_crop\\{date} {hour};{minute};{second}'):
+                os.mkdir(f'{self.dirlist_output}\\images_crop\\{date} {hour};{minute};{second}')
+            im1 = img.crop((left, top, right, bottom))
+            im1.save(f"{self.dirlist_output}\\images_crop\\{date} {hour};{minute};{second}\\{photo}", "png")
+
+        except Exception as err:
+            with open(self.file_path_area, "a") as file:
+                file.write(f"\n{datetime.now()} Ошибка crop_image: {err}")
+                file.close()
+
+    def without_bg_crop(self, date, hour, minute, second):
+        try:
+
+            for pict in os.listdir(f'{self.dirlist_output}\\images_crop\\{date} {hour};{minute};{second}'):
+                output = remove(Image.open(os.path.join(f'{self.dirlist_output}\\images_crop\\{date} {hour};{minute};{second}', pict)))
+                output.save(os.path.join(f'{self.dirlist_output}\\images_without_bg\\{date} {hour};{minute};{second}', f'{pict}.png'))
+        except Exception as err:
+            with open(self.file_path_area, "a") as file:
+                file.write(f"\n{date, hour, minute, second} Ошибка without_bg: {err}")
+                file.close()
+
     def functional(self):
         try:
             photos = os.listdir(self.dirlist_input)
+            timedate = datetime.now()
+            date = timedate.now().date()
+            hour = timedate.now().time().hour
+            minute = timedate.now().time().minute
+            second = timedate.now().time().second
+            self.without_bg(date, hour, minute, second)
             file = open(
-                f"{self.dirlist_output}/{datetime.now().date()} {datetime.now().time().hour};{datetime.now().time().minute};{datetime.now().time().second}.csv",
+                f"{self.dirlist_output}/{date} {hour};{minute};{second}.csv",
                 "w")
             N = True
             for photo in photos:
                 data_time = None
                 Model = None
-                img = cv.imread(f"{self.dirlist_input}\\{photo}")
-                height_img, width_img, channels = img.shape
-                gr = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
-                bl = cv.medianBlur(gr, 5)
-                canny = cv.Canny(bl, 90, 300)
-                kernel = cv.getStructuringElement(cv.MORPH_RECT, (10, 10))
-                closed = cv.morphologyEx(canny, cv.MORPH_CLOSE, kernel)
-                contours = cv.findContours(closed.copy(), cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE)[0]
+                img = Image.open(f"{self.dirlist_output}\\images_without_bg\\{date} {hour};{minute};{second}\\{photo}.png")
 
+                foto_array = np.asarray(img)
+                pix_sqare = 0
+                pr_ug = [-1, -1, -1, -1]  # 0-верх, 1-левая, 2-правая, 3-низ
+                min_x = 0
+                min_y = 0
+                i_n = 0
+                # подсчёт площади без фона
+                # взяли строки изображения
+                for i in foto_array:
+                    # взяли в строках сами пиксели
+                    i_n += 1
+                    k_n = 0
+                    for k in i:
+                        if k[3] >= 100:  # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                            pix_sqare += 1
+                            if pr_ug[0] < i_n and min_x == 0:
+                                pr_ug[0] = i_n
+                                min_x = 1
+                            if pr_ug[1] < k_n and min_y == 0:
+                                pr_ug[1] = k_n
+                                min_y = 1
+                            if pr_ug[2] <= k_n:
+                                pr_ug[2] = k_n
+                            if pr_ug[3] <= i_n:
+                                pr_ug[3] = i_n
+                            if pr_ug[1] > k_n and min_y == 1:
+                                pr_ug[1] = k_n
+
+                        k_n += 1
+                width = sqrt((pr_ug[0] - pr_ug[0]) ** 2 + (pr_ug[2] - pr_ug[1]) ** 2)
+                height = sqrt((pr_ug[0] - pr_ug[3]) ** 2 + (pr_ug[1] - pr_ug[1]) ** 2)
                 edit = csv.writer(file, delimiter=';',  quoting=csv.QUOTE_MINIMAL, lineterminator="\n")
                 if N == True:
                     edit.writerow(["Имя изображения", "Площадь в пикселях",
-                                   "Площадь в см2", "Дата и время съемки", "Высота изображения", "Ширина изображения", "Дата и время обработки",  "Максимальная линейная длина объекта в пикселях", "Минимальная линейная длина объекта в пикселях", "Размеры описанного прямоугольника в пикселях", "Максимальная линейная длина объекта в см2", "Минимальная линейная длина объекта в см2", "Размеры описанного прямоугольника в см2", "Модель камеры"])
+                                   "Площадь в см2", "Дата и время съемки", "Ширина изображения", "Высота изображения", "Дата и время обработки",  "Максимальная линейная длина объекта в пикселях", "Минимальная линейная длина объекта в пикселях", "Размеры описанного прямоугольника в пикселях", "Максимальная линейная длина объекта в см", "Минимальная линейная длина объекта в см", "Размеры описанного прямоугольника в см2", "Модель камеры"])
                     N = False
-                max_cnt = max(contours, key=cv.contourArea)
-                moments = cv.moments(max_cnt)
                 image = Image.open(f"{self.dirlist_input}\\{photo}")
                 exit_data = image.getexif()
-                x, y, w, h = cv.boundingRect(max_cnt)
                 try:
                     data_time = exit_data[306]
                     Model = exit_data[272]
+
                 except Exception as err:
                     with open(self.file_path_area, "a") as filee:
                         filee.write(f"\nНедостаточно параметров; {err}")
                         filee.close()
-                edit.writerow([f"{photo}", f"{moments['m00']}", f"{moments['m00']*float(self.lineEdit.text())}", f"{data_time}", f"{height_img}", f"{width_img}", f"{datetime.now()}", f"{h}", f"{w}", f"{h*w}", f"{h*float(self.lineEdit.text())}", f"{w*float(self.lineEdit.text())}", f"{h*w*float(self.lineEdit.text())}", f"{Model}"])
-                print("y:", y, type(y), "\n")
-                print("y+h:", y+h, "\n")
-                print("x:", x, "\n")
-                print("x+w:", y, "\n")
-                print("height_img:", height_img, type(height_img),"\n")
-                print("width_img:", width_img, type(width_img),"\n")
-
-                if not os.path.isdir(f'{self.dirlist_output}\\crop_image'):
-                    os.mkdir(f'{self.dirlist_output}\\crop_image')
-                try:
-                    crop_img =img[int(y-height_img*0.1):int(y + h+height_img*0.1), int(x-width_img*0.1):int(x + w+width_img*0.1)]
-                    write_crop = cv.imwrite(f'{self.dirlist_output}\\crop_image\\{photo}', crop_img)
-                except Exception as err:
-                    write_crop = cv.imwrite(f'{self.dirlist_output}\\crop_image\\{photo}', img)
-                    print("Фото не надо обрезать: ", err)
-
+                edit.writerow([f"{photo}", f"{pix_sqare}", f"{pix_sqare/float(self.lineEdit.text())/float(self.lineEdit.text())}", f"{data_time}", f"{img.size[0]}", f"{img.size[1]}", f"{datetime.now()}", f"{height}", f"{width}", f"{height*width}", f"{height/float(self.lineEdit.text())}", f"{width/float(self.lineEdit.text())}", f"{height*width/float(self.lineEdit.text())/float(self.lineEdit.text())}", f"{Model}"])
+                self.crop_image(pr_ug[1]-(height*0.1), pr_ug[0]-(height*0.1), pr_ug[2]+(height*0.1), pr_ug[3]+(height*0.1), date, hour, minute, second, img, photo)
             file.close()
-            self.without_bg()
-            self.white_bg()
+            self.without_bg_crop(date, hour, minute, second)
+            self.white_bg(date, hour, minute, second)
+            self.mesh_creator(date, hour, minute, second)
         except Exception as err:
             with open(self.file_path_area, "a") as file:
                 file.write(f"\n{datetime.now()} Ошибка: {err}")
