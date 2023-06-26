@@ -36,7 +36,7 @@ class Example(QtWidgets.QWidget):
         self.horizontalLayout.setObjectName("horizontalLayout")
         self.label = QtWidgets.QLabel(self)
         self.label.setObjectName("label")
-        self.label.setText("Коэффициент фото(pix/1мм)")
+        self.label.setText("Коэффициент фото(пикселей в 1см)")
         self.horizontalLayout.addWidget(self.label)
         self.lineEdit = QtWidgets.QLineEdit(self)
         self.lineEdit.setObjectName("lineEdit")
@@ -103,15 +103,15 @@ class Example(QtWidgets.QWidget):
             for pict in os.listdir(f"{self.dirlist_output}\\images_without_bg\\{date} {hour};{minute};{second}"):
                 img = Image.open(f"{self.dirlist_output}\\images_without_bg\\{date} {hour};{minute};{second}\\{pict}")
                 img_size = img.size
-                font = Image.new('RGBA', img_size, (255, 255, 255, 0))
+                font = Image.new('RGBA', img_size, (255, 255, 255, 255))
                 draw = ImageDraw.Draw(font)
                 width = int((img_size[0] + img_size[1]) * 0.005)
                 # сетка вертикаль
                 for i in range(0, img_size[0], int(5 * float(self.lineEdit.text()))):
-                    draw.line((i, 0, i, img_size[1]), fill='green', width=width)
+                    draw.line((i, 0, i, img_size[1]), fill='blue', width=width)
                 # сетка горизонталь
                 for i in range(0, img_size[1], int(10 * float(self.lineEdit.text()))):
-                    draw.line((0, i, img_size[0], i), fill='blue', width=width)
+                    draw.line((0, i, img_size[0], i), fill='green', width=width)
                 # сетка вертикаль
                 for i in range(0, img_size[0], int(50 * float(self.lineEdit.text()))):
                     draw.line((i, 0, i, img_size[1]), fill='red', width=width)
